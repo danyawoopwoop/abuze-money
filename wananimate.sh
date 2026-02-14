@@ -1,95 +1,120 @@
+#!/bin/bash
 set -euo pipefail
 
-echo "[WanAnimate] Start provisioning..."
-
 export WORKSPACE="/workspace"
+export COMFY_DIR="/workspace/ComfyUI"
+export PY="/venv/main/bin/python"
+
+mkdir -p "$WORKSPACE"
 
 if [ -f /venv/main/bin/activate ]; then
   . /venv/main/bin/activate
 fi
 
-mkdir -p "${WORKSPACE}"
-cd "${WORKSPACE}"
-
-if [ ! -d "ComfyUI" ]; then
-  echo "[WanAnimate] Cloning ComfyUI..."
-  git clone https://github.com/comfyanonymous/ComfyUI.git
+if [ ! -x "$PY" ]; then
+  PY="$(command -v python3 || command -v python)"
 fi
 
-cd "${WORKSPACE}/ComfyUI"
+"$PY" -m pip install -U pip setuptools wheel >/dev/null
 
-echo "[WanAnimate] Updating ComfyUI..."
-git pull || echo "[WanAnimate] ComfyUI already up to date (or pull failed)"
+apt-get update -y >/dev/null
+apt-get install -y git ffmpeg libgl1 libglib2.0-0 >/dev/null
 
-mkdir -p models/diffusion_models \
-         models/clip \
-         models/clip_vision \
-         models/vae \
-         models/detection \
-         models/vitpose
+if [ ! -d "$COMFY_DIR" ]; then
+  git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_DIR"
+fi
 
-pip install --no-cache-dir -U huggingface-hub hf-transfer
+cd "$COMFY_DIR"
+git fetch --all --prune >/dev/null
+git pull --rebase >/dev/null || true
+
+mkdir -p models/diffusion_models models/clip models/clip_vision models/vae models/detection models/loras
+
+"$PY" -m pip install -U "huggingface-hub>=0.24.0" hf-transfer >/dev/null
 export HF_HUB_ENABLE_HF_TRANSFER=1
+export HF_HOME=/workspace/.hf
+export HUGGINGFACE_HUB_CACHE=/workspace/.hf/hub
 
-cd "${WORKSPACE}/ComfyUI/custom_nodes"
+"$PY" -m pip install -U \
+  GitPython toml pyyaml requests tqdm \
+  accelerate diffusers transformers safetensors sentencepiece \
+  onnxruntime opencv-python-headless matplotlib imageio-ffmpeg av \
+  gguf \
+  >/dev/null
 
-clone_if_missing () {
-  local dir="$1"
-  local repo="$2"
-  if [ ! -d "$dir" ]; then
-    echo "[WanAnimate] Cloning $dir..."
-    git clone "$repo" "$dir"
-  else
-    echo "[WanAnimate] $dir exists"
-  fi
-}
+cd "$COMFY_DIR/custom_nodes"
+[ -d "ComfyUI-Manager" ] || git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
+[ -d "ComfyUI-WanVideoWrapper" ] || git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
+[ -d "ComfyUI-WanAnimatePreprocess" ] || git clone https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git
+[ -d "ComfyUI-KJNodes" ] || git clone https://github.com/kijai/ComfyUI-KJNodes.git
+[ -d "NEW-UTILS" ] || git clone https://github.com/teskor-hub/NEW-UTILS.git
+[ -d "ComfyUI-VideoHelperSuite" ] || git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 
-clone_if_missing "ComfyUI-Manager" "https://github.com/Comfy-Org/ComfyUI-Manager.git"
-clone_if_missing "ComfyUI-WanVideoWrapper" "https://github.com/kijai/ComfyUI-WanVideoWrapper.git"
-clone_if_missing "ComfyUI-WanAnimatePreprocess" "https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git"
-clone_if_missing "ComfyUI-KJNodes" "https://github.com/kijai/ComfyUI-KJNodes.git"
-clone_if_missing "NEW-UTILS" "https://github.com/teskor-hub/NEW-UTILS.git"
-clone_if_missing "ComfyUI-VideoHelperSuite" "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git"
+[ -f "ComfyUI-WanVideoWrapper/requirements.txt" ] && "$PY" -m pip install -r "ComfyUI-WanVideoWrapper/requirements.txt" >/dev/null || true
+[ -f "ComfyUI-WanAnimatePreprocess/requirements.txt" ] && "$PY" -m pip install -r "ComfyUI-WanAnimatePreprocess/requirements.txt" >/dev/null || true
 
-if [ -f "ComfyUI-WanVideoWrapper/requirements.txt" ]; then
-  pip install --no-cache-dir -r ComfyUI-WanVideoWrapper/requirements.txt || true
-fi
-if [ -f "ComfyUI-WanAnimatePreprocess/requirements.txt" ]; then
-  pip install --no-cache-dir -r ComfyUI-WanAnimatePreprocess/requirements.txt || true
-fi
+cd "$COMFY_DIR"
 
-cd "${WORKSPACE}/ComfyUI/models"
+"$PY" - <<'PY'
+import os
+from huggingface_hub import hf_hub_download
 
-download_if_missing () {
-  local path="$1"
-  shift
-  if [ ! -f "${path}" ]; then
-    echo "[WanAnimate] Downloading ${path}..."
-    huggingface-cli download "$@" 
-  else
-    echo "[WanAnimate] Exists: ${path}"
-  fi
-}
+def dl(repo, filename, outdir, outname=None, rev="main"):
+    os.makedirs(outdir, exist_ok=True)
+    outname = outname or os.path.basename(filename)
+    outpath = os.path.join(outdir, outname)
+    if os.path.exists(outpath) and os.path.getsize(outpath) > 0:
+        print("[OK already]", outpath)
+        return
+    print(f"[DL] {repo}@{rev} :: {filename}")
+    p = hf_hub_download(repo_id=repo, filename=filename, revision=rev, local_dir=outdir)
+    if p != outpath:
+        os.replace(p, outpath)
+    print("[OK]", outpath)
 
-download_if_missing "diffusion_models/Wan2_2-Animate-14B_fp8_e5m2_scaled_KJ_v2.safetensors" \
-  "Kijai/WanVideo_comfy_fp8_scaled" "Wan2_2-Animate-14B_fp8_e5m2_scaled_KJ_v2.safetensors" --local-dir diffusion_models
+BASE="/workspace/ComfyUI/models"
+DETECTION=f"{BASE}/detection"
 
-download_if_missing "clip/umt5_xxl_fp8_e4m3fn_scaled.safetensors" \
-  "Kijai/WanVideo_comfy" "umt5_xxl_fp8_e4m3fn_scaled.safetensors" --local-dir clip
+dl("calcuis/wan-gguf", "clip_vision_h.safetensors", f"{BASE}/clip_vision", "clip_vision_h.safetensors",
+   "f52f5a1f0ba441d50277fb7cdd7c1b36611837f9")
 
-if [ ! -f "clip_vision/clip_vision_h.safetensors" ]; then
-  echo "[WanAnimate] Downloading clip_vision_h..."
-  huggingface-cli download "h94/IP-Adapter" "models/image_encoder/model.safetensors" \
-    --local-dir clip_vision --filename clip_vision_h.safetensors
-fi
+dl("Kijai/WanVideo_comfy", "umt5-xxl-enc-fp8_e4m3fn.safetensors", f"{BASE}/clip", "umt5-xxl-enc-fp8_e4m3fn.safetensors", "main")
 
-download_if_missing "vae/wan21-vae.safetensors" \
-  "Kijai/WanVideo_comfy" "wan21-vae.safetensors" --local-dir vae
+dl("Kijai/WanVideo_comfy_fp8_scaled", "Wan22Animate/Wan2_2-Animate-14B_fp8_e5m2_scaled_KJ.safetensors",
+   f"{BASE}/diffusion_models", "Wan2_2-Animate-14B_fp8_e5m2_scaled_KJ.safetensors", "main")
 
-download_if_missing "detection/yolov10m.onnx" \
-  "ultralytics/yolov10m.onnx" --local-dir detection
+dl("Wan-AI/Wan2.2-Animate-14B", "process_checkpoint/det/yolov10m.onnx", DETECTION, "yolov10m.onnx", "main")
+dl("Kijai/vitpose_comfy", "onnx/vitpose_h_wholebody_data.bin", DETECTION, "vitpose_h_wholebody_data.bin", "main")
+dl("Kijai/vitpose_comfy", "onnx/vitpose_h_wholebody_model.onnx", DETECTION, "vitpose_h_wholebody_model.onnx", "main")
 
-download_if_missing "vitpose/vitpose-huge.onnx" \
-  "kijai/vitpose-huge.onnx" --local-dir vitpose
+dl("Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+   "split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+   f"{BASE}/loras", "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors", "main")
 
-echo "[WanAnimate] Provisioning done."
+dl("Kijai/WanVideo_comfy", "Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank256_bf16.safetensors",
+   f"{BASE}/loras", "lightx2v_I2V_14B_480p_cfg_step_distill_rank256_bf16.safetensors", "main")
+
+dl("Kijai/WanVideo_comfy", "Pusa/Wan21_PusaV1_LoRA_14B_rank512_bf16.safetensors",
+   f"{BASE}/loras", "Wan21_PusaV1_LoRA_14B_rank512_bf16.safetensors",
+   "d7cfaf07099aa23390dfeb721f03c9e5182b1d1d")
+
+dl("alibaba-pai/Wan2.2-Fun-Reward-LoRAs", "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors",
+   f"{BASE}/loras", "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors", "main")
+PY
+
+rm -f /workspace/ComfyUI/models/clip_vision/put_clip_vision_models_here || true
+rm -f /workspace/ComfyUI/models/clip/put_clip_or_text_encoder_models_here || true
+rm -f /workspace/ComfyUI/models/loras/put_loras_here || true
+
+rm -rf /workspace/ComfyUI/models/detection/process_checkpoint || true
+rm -rf /workspace/ComfyUI/models/detection/onnx || true
+rm -rf /workspace/ComfyUI/models/loras/Pusa || true
+rm -rf /workspace/ComfyUI/models/loras/split_files || true
+
+pkill -f "/workspace/ComfyUI/main.py" >/dev/null 2>&1 || true
+sleep 1
+
+nohup "$PY" /workspace/ComfyUI/main.py --listen 0.0.0.0 --port 8188 > /workspace/comfyui.log 2>&1 &
+
+echo "OK"
+echo "LOG: tail -n 200 /workspace/comfyui.log"
