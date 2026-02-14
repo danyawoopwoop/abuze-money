@@ -3,28 +3,23 @@ set -Eeuo pipefail
 
 export WORKSPACE="/workspace"
 export COMFY_DIR="$WORKSPACE/ComfyUI"
-export VENV_DIR="/venv/main"
-export PY="$VENV_DIR/bin/python"
-export PIP="$VENV_DIR/bin/pip"
+export PY="/venv/main/bin/python"
+export PIP="/venv/main/bin/pip"
 export HF_HUB_ENABLE_HF_TRANSFER=1
-
-MARKER="$WORKSPACE/.wananimate_provisioned_v2"
 
 echo "[WanAnimate] provisioning start"
 
-mkdir -p "$WORKSPACE"
-
-if [ -f "$VENV_DIR/bin/activate" ]; then
-  . "$VENV_DIR/bin/activate"
+if [ -f /venv/main/bin/activate ]; then
+  . /venv/main/bin/activate
 else
-  echo "venv not found at $VENV_DIR"
+  echo "[WanAnimate] ERROR: venv not found: /venv/main"
   exit 1
 fi
 
-if command -v apt-get >/dev/null 2>&1; then
-  apt-get update -y || true
-  apt-get install -y git wget curl ca-certificates rsync dos2unix || true
-fi
+mkdir -p "$WORKSPACE"
+
+apt-get update -y || true
+apt-get install -y git wget curl ca-certificates rsync dos2unix || true
 
 if [ ! -d "$COMFY_DIR" ]; then
   git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_DIR"
@@ -44,24 +39,19 @@ mkdir -p "$COMFY_DIR/models/diffusion_models" \
 "$PIP" install -U --no-cache-dir huggingface_hub hf_transfer
 "$PIP" install -U --no-cache-dir GitPython toml matplotlib opencv-python onnxruntime accelerate gguf || true
 
-mkdir -p "$COMFY_DIR/custom_nodes"
 cd "$COMFY_DIR/custom_nodes"
-
 [ -d "ComfyUI-Manager" ] || git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
 [ -d "ComfyUI-WanVideoWrapper" ] || git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
 "$PIP" install --no-cache-dir -r "$COMFY_DIR/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt" || true
-
 [ -d "ComfyUI-WanAnimatePreprocess" ] || git clone https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git
 "$PIP" install --no-cache-dir -r "$COMFY_DIR/custom_nodes/ComfyUI-WanAnimatePreprocess/requirements.txt" || true
-
 [ -d "ComfyUI-KJNodes" ] || git clone https://github.com/kijai/ComfyUI-KJNodes.git
 [ -d "NEW-UTILS" ] || git clone https://github.com/teskor-hub/NEW-UTILS.git
 [ -d "ComfyUI-VideoHelperSuite" ] || git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 
 cd "$COMFY_DIR"
 
-if [ ! -f "$MARKER" ]; then
-  "$PY" - << 'PY'
+"$PY" - << 'PY'
 from huggingface_hub import hf_hub_download
 import os
 
@@ -72,7 +62,9 @@ def dl(repo, path, out_dir, out_name=None, rev="main"):
     out_name = out_name or os.path.basename(path)
     dst = os.path.join(out_dir, out_name)
     if os.path.exists(dst) and os.path.getsize(dst) > 0:
+        print("[SKIP]", dst)
         return
+    print("[DL]", repo, "::", path, "->", dst, "(rev:", rev, ")")
     hf_hub_download(repo_id=repo, filename=path, revision=rev,
                     local_dir=out_dir, local_dir_use_symlinks=False)
     src = os.path.join(out_dir, path)
@@ -140,9 +132,13 @@ dl("alibaba-pai/Wan2.2-Fun-Reward-LoRAs",
    "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors",
    f"{BASE}/loras",
    "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors")
+
+print("DONE")
 PY
 
-  touch "$MARKER"
-fi
+pkill -f "/workspace/ComfyUI/main.py" >/dev/null 2>&1 || true
+sleep 1
 
-echo "[WanAnimate] provisioning done"
+nohup "$PY" "$COMFY_DIR/main.py" --listen 0.0.0.0 --port 8188 > /workspace/comfyui.log 2>&1 &
+
+echo "[WanAnimate] OK"
