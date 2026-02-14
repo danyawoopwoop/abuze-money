@@ -32,9 +32,11 @@ mkdir -p "$COMFY_DIR/models/diffusion_models" \
          "$COMFY_DIR/models/loras"
 
 "$PIP" install -U --no-cache-dir pip setuptools wheel
+"$PIP" install --no-cache-dir -r "$COMFY_DIR/requirements.txt"
 "$PIP" install -U --no-cache-dir huggingface_hub hf_transfer
 
-"$PIP" install -U --no-cache-dir GitPython toml matplotlib opencv-python onnxruntime accelerate gguf || true
+"$PIP" install -U --no-cache-dir \
+  GitPython toml matplotlib opencv-python onnxruntime accelerate gguf sqlalchemy || true
 
 cd "$COMFY_DIR/custom_nodes"
 
@@ -104,7 +106,6 @@ dl("Wan-AI/Wan2.2-Animate-14B",
    f"{BASE}/detection",
    "yolov10m.onnx")
 
-# vitpose -> detection (как ты просил)
 dl("Kijai/vitpose_comfy",
    "onnx/vitpose_h_wholebody_data.bin",
    f"{BASE}/detection",
