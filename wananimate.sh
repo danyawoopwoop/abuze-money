@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -euo pipefail
 
 export WORKSPACE="/workspace"
 export COMFY_DIR="$WORKSPACE/ComfyUI"
@@ -11,9 +11,6 @@ echo "[WanAnimate] provisioning start"
 
 if [ -f /venv/main/bin/activate ]; then
   . /venv/main/bin/activate
-else
-  echo "[WanAnimate] ERROR: venv not found: /venv/main"
-  exit 1
 fi
 
 mkdir -p "$WORKSPACE"
@@ -32,19 +29,22 @@ mkdir -p "$COMFY_DIR/models/diffusion_models" \
          "$COMFY_DIR/models/clip_vision" \
          "$COMFY_DIR/models/vae" \
          "$COMFY_DIR/models/detection" \
-         "$COMFY_DIR/models/vitpose" \
          "$COMFY_DIR/models/loras"
 
 "$PIP" install -U --no-cache-dir pip setuptools wheel
 "$PIP" install -U --no-cache-dir huggingface_hub hf_transfer
+
 "$PIP" install -U --no-cache-dir GitPython toml matplotlib opencv-python onnxruntime accelerate gguf || true
 
 cd "$COMFY_DIR/custom_nodes"
+
 [ -d "ComfyUI-Manager" ] || git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
 [ -d "ComfyUI-WanVideoWrapper" ] || git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
 "$PIP" install --no-cache-dir -r "$COMFY_DIR/custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt" || true
+
 [ -d "ComfyUI-WanAnimatePreprocess" ] || git clone https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git
 "$PIP" install --no-cache-dir -r "$COMFY_DIR/custom_nodes/ComfyUI-WanAnimatePreprocess/requirements.txt" || true
+
 [ -d "ComfyUI-KJNodes" ] || git clone https://github.com/kijai/ComfyUI-KJNodes.git
 [ -d "NEW-UTILS" ] || git clone https://github.com/teskor-hub/NEW-UTILS.git
 [ -d "ComfyUI-VideoHelperSuite" ] || git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
@@ -64,9 +64,16 @@ def dl(repo, path, out_dir, out_name=None, rev="main"):
     if os.path.exists(dst) and os.path.getsize(dst) > 0:
         print("[SKIP]", dst)
         return
+
     print("[DL]", repo, "::", path, "->", dst, "(rev:", rev, ")")
-    hf_hub_download(repo_id=repo, filename=path, revision=rev,
-                    local_dir=out_dir, local_dir_use_symlinks=False)
+    hf_hub_download(
+        repo_id=repo,
+        filename=path,
+        revision=rev,
+        local_dir=out_dir,
+        local_dir_use_symlinks=False,
+    )
+
     src = os.path.join(out_dir, path)
     if src != dst and os.path.exists(src):
         os.replace(src, dst)
@@ -97,14 +104,15 @@ dl("Wan-AI/Wan2.2-Animate-14B",
    f"{BASE}/detection",
    "yolov10m.onnx")
 
+# vitpose -> detection (как ты просил)
 dl("Kijai/vitpose_comfy",
    "onnx/vitpose_h_wholebody_data.bin",
-   f"{BASE}/vitpose",
+   f"{BASE}/detection",
    "vitpose_h_wholebody_data.bin")
 
 dl("Kijai/vitpose_comfy",
    "onnx/vitpose_h_wholebody_model.onnx",
-   f"{BASE}/vitpose",
+   f"{BASE}/detection",
    "vitpose_h_wholebody_model.onnx")
 
 dl("Kijai/WanVideo_comfy",
@@ -133,7 +141,7 @@ dl("alibaba-pai/Wan2.2-Fun-Reward-LoRAs",
    f"{BASE}/loras",
    "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors")
 
-print("DONE")
+print("DONE: models ready in", BASE)
 PY
 
 pkill -f "/workspace/ComfyUI/main.py" >/dev/null 2>&1 || true
@@ -142,3 +150,4 @@ sleep 1
 nohup "$PY" "$COMFY_DIR/main.py" --listen 0.0.0.0 --port 8188 > /workspace/comfyui.log 2>&1 &
 
 echo "[WanAnimate] OK"
+echo "LOG: tail -n 200 /workspace/comfyui.log"
