@@ -81,19 +81,14 @@ def dl(repo, path, out_dir, out_name=None, rev="main"):
         os.replace(src, dst)
 
 dl("Kijai/WanVideo_comfy_fp8_scaled",
-   "Wan22Animate/Wan2_2-Animate-14B_fp8_scaled_e5m2_KJ_v2.safetensors",
+   "Wan22Animate/Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors",
    f"{BASE}/diffusion_models",
-   "Wan2_2-Animate-14B_fp8_scaled_e5m2_KJ_v2.safetensors")
+   "Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors")
 
-dl("Kijai/WanVideo_comfy_fp8_scaled",
-   "Wan22Animate/Wan2_2-Animate-14B_fp8_e5m2_scaled_KJ.safetensors",
-   f"{BASE}/diffusion_models",
-   "Wan2_2-Animate-14B_fp8_e5m2_scaled_KJ.safetensors")
-
-dl("Kijai/WanVideo_comfy",
-   "umt5-xxl-enc-fp8_e4m3fn.safetensors",
+dl("Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+   "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
    f"{BASE}/clip",
-   "umt5-xxl-enc-fp8_e4m3fn.safetensors")
+   "umt5_xxl_fp8_e4m3fn_scaled.safetensors")
 
 dl("calcuis/wan-gguf",
    "clip_vision_h.safetensors",
