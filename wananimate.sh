@@ -80,10 +80,10 @@ def dl(repo, path, out_dir, out_name=None, rev="main"):
     if src != dst and os.path.exists(src):
         os.replace(src, dst)
 
-dl("Kijai/WanVideo_comfy_fp8_scaled",
-   "Wan22Animate/Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors",
+dl("Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+   "split_files/diffusion_models/wan2.2_animate_14B_bf16.safetensors",
    f"{BASE}/diffusion_models",
-   "Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors")
+   "wan2.2_animate_14B_bf16.safetensors")
 
 dl("Comfy-Org/Wan_2.1_ComfyUI_repackaged",
    "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
@@ -126,11 +126,16 @@ dl("Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
    f"{BASE}/loras",
    "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors")
 
-dl("Kijai/WanVideo_comfy",
-   "Pusa/Wan21_PusaV1_LoRA_14B_rank512_bf16.safetensors",
+dl("RaphaelLiu/Pusa-Wan2.2-V1",
+   "high_noise_pusa.safetensors",
    f"{BASE}/loras",
-   "Wan21_PusaV1_LoRA_14B_rank512_bf16.safetensors",
-   "d7cfaf07099aa23390dfeb721f03c9e5182b1d1d")
+   "high_noise_pusa.safetensors")
+
+dl("RaphaelLiu/Pusa-Wan2.2-V1",
+   "low_noise_pusa.safetensors",
+   f"{BASE}/loras",
+   "low_noise_pusa.safetensors")
+
 
 dl("alibaba-pai/Wan2.2-Fun-Reward-LoRAs",
    "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors",
