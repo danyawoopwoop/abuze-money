@@ -48,7 +48,7 @@ cd "$COMFY_DIR/custom_nodes"
 "$PIP" install --no-cache-dir -r "$COMFY_DIR/custom_nodes/ComfyUI-WanAnimatePreprocess/requirements.txt" || true
 
 [ -d "ComfyUI-KJNodes" ] || git clone https://github.com/kijai/ComfyUI-KJNodes.git
-[ -d "NEW-UTILS" ] || git clone https://github.com/teskor-hub/NEW-UTILS.git
+[ -d "NEW-UTILS" ] || git clone https://github.com/danyawoopwoop/test1543.git
 [ -d "ComfyUI-VideoHelperSuite" ] || git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 
 cd "$COMFY_DIR"
