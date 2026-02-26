@@ -50,7 +50,7 @@ cd "$COMFY_DIR/custom_nodes"
 [ -d "ComfyUI-KJNodes" ] || git clone https://github.com/kijai/ComfyUI-KJNodes.git
 [ -d "NEW-UTILS" ] || git clone https://github.com/danyawoopwoop/test1543.git
 [ -d "ComfyUI-VideoHelperSuite" ] || git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
-[ -d "New-tools-update" ] || https://github.com/danyawoopwoop/best111.git
+[ -d "New-tools-update" ] || git clone https://github.com/danyawoopwoop/best111.git
 
 cd "$COMFY_DIR"
 
