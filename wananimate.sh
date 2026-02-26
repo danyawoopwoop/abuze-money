@@ -137,6 +137,10 @@ dl("RaphaelLiu/Pusa-Wan2.2-V1",
    f"{BASE}/loras",
    "low_noise_pusa.safetensors")
 
+dl("Kijai/WanVideo_comfy",
+   "Pusa/Wan21_PusaV1_LoRA_14B_rank512_bf16.safetensors",
+   f"{BASE}/loras",
+   "Wan21_PusaV1_LoRA_14B_rank512_bf16.safetensors")
 
 dl("alibaba-pai/Wan2.2-Fun-Reward-LoRAs",
    "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors",
